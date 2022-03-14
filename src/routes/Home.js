@@ -1,6 +1,6 @@
 import Nweet from "components/Nweet";
 import { v4 as uuidv4 } from "uuid";
-import { dbService, storageService } from "fbase";
+import { dbService, storageService } from "../fbase";
 import React, { useEffect, useState } from "react";
 
 const Home = ({ userObj }) => {
@@ -16,18 +16,28 @@ const Home = ({ userObj }) => {
       setNweets(nweetArray);
     });
   }, []);
+
   const onSubmit = async (event) => {
     event.preventDefault();
-    const fileRef = storageService.ref().child(`${userObj.uid}/${uuidv4()}`);
-    const response = await fileRef.putString(attachment, "data_url");
-    console.log(response);
-    // await dbService.collection("nweets").add({
-    //   text: nweet,
-    //   createdAt: Date.now(),
-    //   creatorId: userObj.uid,
-    // });
-    // setNweet("");
+    let attachmentUrl = "";
+    if (attachment !== "") {
+      const attachmentRef = storageService
+        .ref()
+        .child(`${userObj.uid}/${uuidv4()}`);
+      const response = await attachmentRef.putString(attachment, "data_url");
+      attachmentUrl = await response.ref.getDownloadURL();
+    }
+    const nweetObj = {
+      text: nweet,
+      createdAt: Date.now(),
+      creatorId: userObj.uid,
+      attachmentUrl,
+    };
+    await dbService.collection("nweets").add(nweetObj);
+    setNweet("");
+    setAttachment();
   };
+
   const onChange = (event) => {
     const {
       target: { value },
@@ -44,7 +54,7 @@ const Home = ({ userObj }) => {
       const {
         currentTarget: { result },
       } = finishedEvent;
-      setAttachment(finishedEvent);
+      setAttachment(result);
     };
     reader.readAsDataURL(theFile);
   };
@@ -62,10 +72,12 @@ const Home = ({ userObj }) => {
         <input type="file" accept="image/*" onChange={onFileChange} />
         <input type="submit" value="Nweet" />
         {attachment && (
-          <div>
-            <img src={attachment} width="100px" height="100px" />
-            <button onClick={onClearAttachment}>Clear</button>
-          </div>
+          <>
+            <div>
+              <img src={attachment} width="50px" height="50px" />
+              <button onClick={onClearAttachment}>Clear</button>
+            </div>
+          </>
         )}
       </form>
       <div>
